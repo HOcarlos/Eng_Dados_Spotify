@@ -6,16 +6,41 @@ import json
 from datetime import datetime
 import datetime
 import sqlite3
+import config
 
 DATABASE_LOCATION = "sqlite:///my_played_tracks.sqlite"
 USER_ID = "hoxzum"
-TOKEN = "BQAdnPzfJzuDmOmU1jvQAOIRV3GsNBWhM2PmkgdyrJYLigdVGimzrVunBSczX3Dkakfu70ZVP7UA6QEXtksa5FqHL1JfWtBW265ONeyC9klMNpffGk3HbokEmyMPFyKUsySF6u4hpNisH6E"
+
+def check_valid_data(df: pd.DataFrame) -> bool:
+  #Check if dataframe is empty
+  if df.empty:
+    print("No songs downloaded. Finishing execution")
+    return False
+  
+  #Primary Key Check
+  if pd.Series(df['played_at']).is_unique:
+    pass
+  else:
+    raise Exception("Primary Key is violated")
+
+  #Check nulls
+  if df.isnull().values.any():
+    raise Exception("Null valued found")
+
+  #Check that all timestamps are of yesterday date
+  yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
+  yesterday = yesterday.replace(hour=0, minute=0, second=0, microsecond=0)
+  timestamps = df["timestamp"].tolist()
+  for timestamp in timestamps:
+    if datetime.datetime.strptime(timestamp, "%Y-%m-%d") != yesterday:
+      raise Exception("At least one of the returned songs does not come from within the last 24 hours")
+  return True
 
 if __name__ == "__main__":
   headers = {
     "Accept": "application/json",
     "Content-Type": "application/json",
-    "Authorization": "Bearer {token}".format(token=TOKEN)
+    "Authorization": "Bearer {token}".format(token=config.TOKEN)
   }
 
   today = datetime.datetime.now()
@@ -45,4 +70,7 @@ song_dict = {
 }
 # print(song_dict)
 song_df = pd.DataFrame(song_dict, columns=["song_name", "artist_name", "played_at", "timestamp"])
-print(song_df)
+
+#Validation
+if check_valid_data(song_df):
+  print("Data valid, proceed to Load stage")
